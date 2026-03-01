@@ -45,7 +45,7 @@ shadow-hubs/
 | Resource | Link |
 |----------|------|
 | **Analysis Notebook** | [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/AHMerrill/shadow-hubs/blob/main/notebooks/SMA-Final%20Project.ipynb) |
-| **Presentation** | [View in Canva](https://www.canva.com/design/DAHCviKzIKc/qz2ByeEa35NoiJhALUG57A/view) |
+| **Presentation** | [View in Canva](https://www.canva.com/d/V20Mq3zMpjkJAd2) |
 | **Interactive Globe** | [Launch in Browser](https://ahmerrill.github.io/shadow-hubs/notebooks/globe_viz.html) |
 | **Neo4j Load Scripts** | [`notebooks/auradb_load.cypher`](notebooks/auradb_load.cypher) |
 | **Data Dictionary** | [`docs/Data dictionary - SMA Final Project.docx`](docs/Data%20dictionary%20-%20SMA%20Final%20Project.docx) |
