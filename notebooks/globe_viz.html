@@ -258,6 +258,101 @@
             margin-bottom: 4px;
         }
 
+        .leaderboard {
+            position: absolute;
+            top: 260px;
+            left: 20px;
+            background: rgba(20, 28, 50, 0.95);
+            border: 1px solid rgba(100, 150, 255, 0.3);
+            border-radius: 8px;
+            padding: 16px;
+            z-index: 100;
+            min-width: 300px;
+            max-height: calc(100vh - 300px);
+            overflow-y: auto;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        .leaderboard h3 {
+            margin-bottom: 10px;
+            color: #64b5f6;
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .leaderboard-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+
+        .leaderboard-table th {
+            text-align: left;
+            color: #90caf9;
+            font-weight: 600;
+            padding: 4px 6px;
+            border-bottom: 1px solid rgba(100, 150, 255, 0.3);
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .leaderboard-table td {
+            padding: 5px 6px;
+            border-bottom: 1px solid rgba(100, 150, 255, 0.08);
+            color: #c0c8e0;
+        }
+
+        .leaderboard-table tr:hover {
+            background: rgba(100, 150, 255, 0.1);
+            cursor: pointer;
+        }
+
+        .leaderboard-table tr:hover td {
+            color: #fff;
+        }
+
+        .lb-rank {
+            color: #64b5f6;
+            font-weight: 700;
+            width: 28px;
+            text-align: center;
+        }
+
+        .lb-country {
+            font-weight: 500;
+        }
+
+        .lb-residual {
+            text-align: right;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+        }
+
+        .lb-ofac {
+            text-align: center;
+            width: 50px;
+        }
+
+        .lb-ofac-badge {
+            display: inline-block;
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .lb-ofac-high { background: rgba(255, 107, 107, 0.25); color: #ff6b6b; }
+        .lb-ofac-med { background: rgba(255, 159, 67, 0.25); color: #ff9f43; }
+        .lb-ofac-low { background: rgba(66, 165, 245, 0.2); color: #64b5f6; }
+
+        .lb-rank-1 .lb-rank { color: #ffd700; font-size: 13px; }
+        .lb-rank-2 .lb-rank { color: #c0c0c0; }
+        .lb-rank-3 .lb-rank { color: #cd7f32; }
+
     </style>
 </head>
 <body>
@@ -295,7 +390,23 @@
             </div>
         </div>
     </div>
-    
+
+    <div class="leaderboard" id="leaderboard">
+        <h3>Top 10 Shadow Hubs <span id="lbYear" style="color:#fff;font-size:12px;">2019</span></h3>
+        <table class="leaderboard-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Country</th>
+                    <th style="text-align:right">Residual</th>
+                    <th style="text-align:center">OFAC</th>
+                </tr>
+            </thead>
+            <tbody id="lbBody">
+            </tbody>
+        </table>
+    </div>
+
     <div class="legend">
         <h3>Legend</h3>
         <div class="legend-item">
@@ -593,12 +704,76 @@
                     totalVolume > 1e12 ? '$' + (totalVolume / 1e12).toFixed(2) + 'T' : '$' + (totalVolume / 1e9).toFixed(1) + 'B';
                 document.getElementById('countryCount').textContent = pointsArray.length;
                 document.getElementById('topFlow').textContent = 'Click a country';
-                
+
+                // Update leaderboard
+                updateLeaderboard(year);
+
             } catch (err) {
                 console.error('Update error:', err);
             }
         }
-        
+
+        function updateLeaderboard(year) {
+            const yearStr = year.toString();
+            document.getElementById('lbYear').textContent = yearStr;
+
+            // Collect all shadow hub entries for this year
+            const hubs = [];
+            for (const key in shadowLookup) {
+                if (key.startsWith(yearStr + '_')) {
+                    const iso3 = key.split('_')[1];
+                    const sh = shadowLookup[key];
+                    const country = countriesData[iso3];
+                    if (country && sh.shadow_rank && sh.shadow_rank <= 999) {
+                        hubs.push({
+                            iso3: iso3,
+                            name: country.name || iso3,
+                            rank: sh.shadow_rank,
+                            residual: sh.shadow_resid,
+                            ofac: country.ofac_entities || 0,
+                            lat: country.lat,
+                            lon: country.lon
+                        });
+                    }
+                }
+            }
+
+            // Sort by rank, take top 10
+            hubs.sort((a, b) => a.rank - b.rank);
+            const top10 = hubs.slice(0, 10);
+
+            const tbody = document.getElementById('lbBody');
+            tbody.innerHTML = '';
+
+            top10.forEach((h, i) => {
+                const tr = document.createElement('tr');
+                tr.className = 'lb-rank-' + (i + 1);
+
+                // Click row to select that country on the globe
+                tr.addEventListener('click', () => {
+                    const pt = globe.pointsData().find(p => p.iso3 === h.iso3);
+                    if (pt) {
+                        handlePointClick(pt);
+                        // Rotate globe to that country
+                        globe.pointOfView({ lat: h.lat, lng: h.lon, altitude: 2.0 }, 1000);
+                    }
+                });
+
+                // OFAC badge class
+                let ofacClass = 'lb-ofac-low';
+                if (h.ofac > 500) ofacClass = 'lb-ofac-high';
+                else if (h.ofac > 100) ofacClass = 'lb-ofac-med';
+
+                tr.innerHTML =
+                    '<td class="lb-rank">' + (i + 1) + '</td>' +
+                    '<td class="lb-country">' + h.name + '</td>' +
+                    '<td class="lb-residual">' + h.residual.toFixed(3) + '</td>' +
+                    '<td class="lb-ofac"><span class="lb-ofac-badge ' + ofacClass + '">' + h.ofac + '</span></td>';
+
+                tbody.appendChild(tr);
+            });
+        }
+
         // Initialize
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => initGlobe());
