@@ -171,9 +171,12 @@ async def root():
         return {"message": "Welcome to Shadow Hubs GraphRAG API", "endpoints": ["/health", "/ask", "/rebuild-index"]}
 
 
-# Mount static files directory if it exists
+# Mount static files directories
+try:
+    app.mount("/data", StaticFiles(directory="static/data"), name="data")
+except Exception:
+    pass
 try:
     app.mount("/static", StaticFiles(directory="static"), name="static")
 except Exception:
-    # Static directory might not exist, that's ok
     pass
