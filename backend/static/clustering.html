@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shadow Hub Clustering Analysis</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0e27;
+            color: #e0e0e0;
+            min-height: 100vh;
+        }
+        .header {
+            padding: 20px 30px;
+            background: rgba(20, 28, 50, 0.95);
+            border-bottom: 1px solid rgba(100, 150, 255, 0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 {
+            color: #64b5f6;
+            font-size: 18px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .back-link {
+            color: #90caf9;
+            text-decoration: none;
+            font-size: 13px;
+            padding: 6px 14px;
+            border: 1px solid rgba(100, 150, 255, 0.3);
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        .back-link:hover {
+            background: rgba(100, 150, 255, 0.1);
+            border-color: rgba(100, 150, 255, 0.6);
+        }
+        .controls-bar {
+            padding: 16px 30px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            background: rgba(15, 20, 40, 0.8);
+            border-bottom: 1px solid rgba(100, 150, 255, 0.15);
+        }
+        .controls-bar label {
+            color: #90caf9;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .controls-bar select {
+            padding: 6px 10px;
+            background: rgba(30, 40, 70, 0.8);
+            border: 1px solid rgba(100, 150, 255, 0.4);
+            border-radius: 4px;
+            color: #e0e0e0;
+            font-size: 13px;
+        }
+        .main-content {
+            display: flex;
+            gap: 0;
+            height: calc(100vh - 120px);
+        }
+        .chart-area {
+            flex: 1;
+            padding: 20px;
+            position: relative;
+        }
+        .chart-area canvas {
+            width: 100% !important;
+            height: 100% !important;
+        }
+        .side-panel {
+            width: 320px;
+            background: rgba(20, 28, 50, 0.95);
+            border-left: 1px solid rgba(100, 150, 255, 0.2);
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .side-panel h3 {
+            color: #64b5f6;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+        }
+        .cluster-legend {
+            margin-bottom: 20px;
+        }
+        .legend-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            font-size: 12px;
+        }
+        .legend-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .table-container {
+            margin-top: 16px;
+        }
+        .cluster-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+        .cluster-table th {
+            text-align: left;
+            color: #90caf9;
+            font-weight: 600;
+            padding: 6px 4px;
+            border-bottom: 1px solid rgba(100, 150, 255, 0.3);
+            font-size: 10px;
+            text-transform: uppercase;
+        }
+        .cluster-table td {
+            padding: 5px 4px;
+            border-bottom: 1px solid rgba(100, 150, 255, 0.1);
+        }
+        .cluster-table tbody tr:hover {
+            background: rgba(100, 150, 255, 0.1);
+        }
+        .pattern-badge {
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+        .pattern-broker { background: rgba(66, 165, 245, 0.2); color: #42a5f5; }
+        .pattern-mixed { background: rgba(255, 159, 67, 0.2); color: #ff9f43; }
+        .pattern-syndicate { background: rgba(255, 107, 107, 0.2); color: #ff6b6b; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Shadow Hub Clustering Analysis</h1>
+        <a href="/" class="back-link">Back to Globe</a>
+    </div>
+    <div class="controls-bar">
+        <label for="yearSelect">Year:</label>
+        <select id="yearSelect">
+            <option value="2019">2019</option>
+            <option value="2020">2020</option>
+            <option value="2021">2021</option>
+            <option value="2022">2022</option>
+            <option value="2023">2023</option>
+            <option value="2024" selected>2024</option>
+        </select>
+    </div>
+    <div class="main-content">
+        <div class="chart-area">
+            <canvas id="scatterChart"></canvas>
+        </div>
+        <div class="side-panel">
+            <h3>Clustering Patterns</h3>
+            <div class="cluster-legend">
+                <div class="legend-row">
+                    <div class="legend-dot" style="background:#42a5f5;"></div>
+                    <span><strong>Exclusive Broker</strong> (clustering &lt; 0.20)</span>
+                </div>
+                <div class="legend-row">
+                    <div class="legend-dot" style="background:#ff9f43;"></div>
+                    <span><strong>Mixed/Moderate</strong> (0.20 - 0.40)</span>
+                </div>
+                <div class="legend-row">
+                    <div class="legend-dot" style="background:#ff6b6b;"></div>
+                    <span><strong>Laundering Syndicate</strong> (clustering &gt; 0.40)</span>
+                </div>
+                <p style="font-size:11px; color:#a0b0cc; margin-top:10px; line-height:1.5;">
+                    Weighted clustering coefficients measure how densely a country's trade partners are
+                    connected to each other. Low clustering suggests an exclusive intermediary; high
+                    clustering suggests a coordinated network.
+                </p>
+            </div>
+
+            <h3>Top Shadow Hubs (<span id="tableYear">2024</span>)</h3>
+            <div class="table-container">
+                <table class="cluster-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Country</th>
+                            <th>Residual</th>
+                            <th>Cluster</th>
+                            <th>Pattern</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1"></script>
+    <script>
+        let allData = [];
+        let chart = null;
+
+        async function init() {
+            const resp = await fetch('data/clustering_data.json');
+            allData = await resp.json();
+            document.getElementById('yearSelect').addEventListener('change', e => {
+                updateChart(parseInt(e.target.value));
+            });
+            updateChart(2024);
+        }
+
+        function getPattern(clustering) {
+            if (clustering < 0.20) return { label: 'Broker', color: '#42a5f5', css: 'pattern-broker' };
+            if (clustering > 0.40) return { label: 'Syndicate', color: '#ff6b6b', css: 'pattern-syndicate' };
+            return { label: 'Mixed', color: '#ff9f43', css: 'pattern-mixed' };
+        }
+
+        function updateChart(year) {
+            document.getElementById('tableYear').textContent = year;
+            const yearData = allData.filter(d => d.year === year && d.shadow_resid > -0.1);
+            const positive = yearData.filter(d => d.shadow_resid > 0);
+            const top10 = positive
+                .filter(d => d.ofac_entities > 5)
+                .sort((a, b) => b.shadow_resid - a.shadow_resid)
+                .slice(0, 10);
+
+            // Update table
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            top10.forEach((d, i) => {
+                const p = getPattern(d.clustering);
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="color:#90caf9;font-weight:600;">${i + 1}</td>
+                    <td>${d.name || d.iso3}</td>
+                    <td>${d.shadow_resid.toFixed(4)}</td>
+                    <td>${d.clustering.toFixed(3)}</td>
+                    <td><span class="pattern-badge ${p.css}">${p.label}</span></td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // Chart data
+            const datasets = [
+                { label: 'Broker (< 0.20)', data: [], backgroundColor: 'rgba(66,165,245,0.6)', borderColor: '#42a5f5' },
+                { label: 'Mixed (0.20-0.40)', data: [], backgroundColor: 'rgba(255,159,67,0.6)', borderColor: '#ff9f43' },
+                { label: 'Syndicate (> 0.40)', data: [], backgroundColor: 'rgba(255,107,107,0.6)', borderColor: '#ff6b6b' },
+            ];
+
+            const labelMap = {};
+            positive.forEach(d => {
+                const p = getPattern(d.clustering);
+                const point = {
+                    x: d.shadow_resid,
+                    y: d.ofac_entities > 0 ? d.ofac_entities : 0.5,
+                    r: Math.max(4, Math.min(20, d.trade_total_usd / 5e10)),
+                    iso3: d.iso3,
+                    name: d.name,
+                    clustering: d.clustering,
+                    trade: d.trade_total_usd
+                };
+                if (p.label === 'Broker') datasets[0].data.push(point);
+                else if (p.label === 'Mixed') datasets[1].data.push(point);
+                else datasets[2].data.push(point);
+
+                if (top10.find(t => t.iso3 === d.iso3)) {
+                    labelMap[d.iso3] = d.name || d.iso3;
+                }
+            });
+
+            if (chart) chart.destroy();
+
+            const ctx = document.getElementById('scatterChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'bubble',
+                data: { datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#90caf9', font: { size: 12 } },
+                            position: 'top'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => {
+                                    const d = ctx.raw;
+                                    const p = getPattern(d.clustering);
+                                    return [
+                                        `${d.name} (${d.iso3})`,
+                                        `Shadow Residual: ${d.x.toFixed(4)}`,
+                                        `OFAC Entities: ${Math.round(d.y)}`,
+                                        `Clustering: ${d.clustering.toFixed(3)} [${p.label}]`,
+                                        `Trade: $${(d.trade / 1e9).toFixed(1)}B`
+                                    ];
+                                }
+                            }
+                        },
+                        annotation: {
+                            annotations: {
+                                zeroLine: {
+                                    type: 'line',
+                                    xMin: 0, xMax: 0,
+                                    borderColor: 'rgba(150,150,150,0.4)',
+                                    borderDash: [5, 5],
+                                    borderWidth: 1
+                                },
+                                ofacLine: {
+                                    type: 'line',
+                                    yMin: 10, yMax: 10,
+                                    borderColor: 'rgba(150,150,150,0.4)',
+                                    borderDash: [5, 5],
+                                    borderWidth: 1
+                                },
+                                ...Object.fromEntries(
+                                    top10.map((d, i) => [
+                                        `label_${i}`,
+                                        {
+                                            type: 'label',
+                                            xValue: d.shadow_resid,
+                                            yValue: d.ofac_entities > 0 ? d.ofac_entities : 0.5,
+                                            content: d.name || d.iso3,
+                                            color: '#c0392b',
+                                            font: { size: 11, weight: 'bold' },
+                                            position: 'end',
+                                            xAdjust: 10,
+                                            yAdjust: -8
+                                        }
+                                    ])
+                                )
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Shadow Hub Score (Positive = Unusually Central Bridge)',
+                                color: '#90caf9',
+                                font: { size: 13 }
+                            },
+                            ticks: { color: '#a0b0cc' },
+                            grid: { color: 'rgba(100,150,255,0.1)' }
+                        },
+                        y: {
+                            type: 'logarithmic',
+                            title: {
+                                display: true,
+                                text: 'OFAC Sanctioned Entity Count (Log Scale)',
+                                color: '#90caf9',
+                                font: { size: 13 }
+                            },
+                            ticks: { color: '#a0b0cc' },
+                            grid: { color: 'rgba(100,150,255,0.1)' },
+                            min: 0.3
+                        }
+                    }
+                }
+            });
+        }
+
+        init();
+    </script>
+</body>
+</html>

@@ -208,53 +208,78 @@
             transition: all 0.3s ease;
         }
 
-        .readme-panel.collapsed .info-content {
-            display: none;
-        }
-
-        .info-toggle {
+        .readme-title {
             padding: 12px 16px;
-            cursor: pointer;
             font-size: 14px;
             color: #64b5f6;
             font-weight: 600;
-            user-select: none;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid rgba(100, 150, 255, 0.15);
         }
 
-        .info-toggle:hover {
-            color: #90caf9;
+        .accordion-item {
+            border-bottom: 1px solid rgba(100, 150, 255, 0.1);
         }
 
-        .info-content {
-            padding: 0 16px 16px;
+        .accordion-item:last-child {
+            border-bottom: none;
+        }
+
+        .accordion-header {
+            padding: 10px 16px;
+            cursor: pointer;
             font-size: 13px;
+            color: #90caf9;
+            font-weight: 600;
+            user-select: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.2s ease;
+        }
+
+        .accordion-header:hover {
+            background: rgba(100, 150, 255, 0.08);
+        }
+
+        .accordion-arrow {
+            font-size: 10px;
+            transition: transform 0.2s ease;
+            color: #64b5f6;
+        }
+
+        .accordion-item.open .accordion-arrow {
+            transform: rotate(90deg);
+        }
+
+        .accordion-body {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .accordion-item.open .accordion-body {
+            max-height: 600px;
+        }
+
+        .accordion-content {
+            padding: 0 16px 12px;
+            font-size: 12px;
             line-height: 1.6;
         }
 
-        .info-content h3 {
-            color: #64b5f6;
-            font-size: 15px;
-            margin-bottom: 10px;
-        }
-
-        .info-content h4 {
-            color: #90caf9;
-            font-size: 13px;
-            margin-top: 14px;
-            margin-bottom: 6px;
-        }
-
-        .info-content p {
+        .accordion-content p {
             margin-bottom: 8px;
             color: #c0c8e0;
         }
 
-        .info-content ul {
+        .accordion-content ul {
             margin: 6px 0 10px 16px;
             color: #c0c8e0;
         }
 
-        .info-content li {
+        .accordion-content li {
             margin-bottom: 4px;
         }
 
@@ -724,7 +749,7 @@
     </div>
 
     <!-- Chat Panel -->
-    <button class="chat-toggle-btn" id="chatToggleBtn" title="Ask AI about shadow hubs">🤖 Ask AI</button>
+    <button class="chat-toggle-btn" id="chatToggleBtn" title="Ask AI about shadow hubs">Ask AI</button>
 
     <div class="chat-panel" id="chatPanel">
         <div class="chat-header">
@@ -878,7 +903,7 @@
                 if (data.sources && data.sources.length > 0) {
                     responseHtml += '<div class="sources-section">';
                     responseHtml += '<div class="sources-toggle" onclick="this.nextElementSibling.classList.toggle(\'show\')">';
-                    responseHtml += '<span>📎 Sources (' + data.sources.length + ')</span>';
+                    responseHtml += '<span>Sources (' + data.sources.length + ')</span>';
                     responseHtml += '</div>';
                     responseHtml += '<div class="sources-list">';
                     data.sources.forEach((source, idx) => {
@@ -919,17 +944,48 @@
         }
 
         function formatMarkdown(text) {
+            // Strip out the Citations block at the end (we handle it separately)
+            const citationsIdx = text.indexOf('\nCitations:');
+            let citationsBlock = '';
+            if (citationsIdx !== -1) {
+                citationsBlock = text.substring(citationsIdx);
+                text = text.substring(0, citationsIdx);
+            }
+
             // Handle bold (**text**)
             text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
 
             // Handle italics (*text*)
             text = text.replace(/\*([^*]+)\*/g, '<em>$1</em>');
 
-            // Handle citations [C1], [V2], etc.
+            // Handle citations with brackets [C1], [V2], etc.
             text = text.replace(/\[([CV]\d+)\]/g, '<span class="citation-badge">$1</span>');
+
+            // Handle citations WITHOUT brackets (C1V1, C1, V2 etc.)
+            text = text.replace(/(?<!\w)([CV]\d+)(?!\w)/g, '<span class="citation-badge">$1</span>');
 
             // Handle line breaks
             text = text.replace(/\n/g, '<br>');
+
+            // Add parsed citations as collapsible sources
+            if (citationsBlock) {
+                const lines = citationsBlock.split('\n').filter(l => l.trim().startsWith('-'));
+                if (lines.length > 0) {
+                    text += '<div class="sources-section">';
+                    text += '<div class="sources-toggle" onclick="this.nextElementSibling.classList.toggle(\'show\')">';
+                    text += '<span>Sources (' + lines.length + ')</span>';
+                    text += '</div>';
+                    text += '<div class="sources-list">';
+                    lines.forEach(line => {
+                        const cleaned = line.replace(/^-\s*/, '');
+                        // Bold the citation key like [C1] or [V1]
+                        const formatted = cleaned.replace(/\[([CV]\d+)\]/g, '<strong>[$1]</strong>');
+                        text += '<div class="source-item">' + formatted + '</div>';
+                    });
+                    text += '</div>';
+                    text += '</div>';
+                }
+            }
 
             return text;
         }
@@ -943,6 +999,16 @@
                 "'": '&#039;'
             };
             return text.replace(/[&<>"']/g, m => map[m]);
+        }
+
+        // Accordion toggle — collapse others when one opens
+        function toggleAccordion(header) {
+            const item = header.parentElement;
+            const isOpen = item.classList.contains('open');
+            // Close all
+            document.querySelectorAll('.accordion-item').forEach(ai => ai.classList.remove('open'));
+            // Open this one if it was closed
+            if (!isOpen) item.classList.add('open');
         }
 
         // Handle point click and add to chat
@@ -1012,9 +1078,6 @@
                     .arcEndLng('endLng')
                     .arcColor('color')
                     .arcStroke(0.5)
-                    .arcDashLength(0.4)
-                    .arcDashGap(0.2)
-                    .arcDashAnimateTime(1500)
                     (container);
 
                 // Set initial view
@@ -1197,41 +1260,104 @@
         }
     </script>
 
-    <div class="readme-panel">
-        <div class="info-toggle">📖 About This Visualization</div>
-        <div class="info-content">
-            <h3>Shadow Hubs in Global Oil Trade</h3>
-            <p>This visualization maps bilateral crude and refined petroleum trade flows (UN Comtrade HS 2709/2710) from 2019 to 2024, overlaid with OFAC sanctions exposure and network-derived "shadow hub" scores.</p>
+    <div class="readme-panel" id="readmePanel">
+        <div class="readme-title">About</div>
 
-            <h4>What are Shadow Hubs?</h4>
-            <p>A shadow hub is a country that is <em>unusually central</em> in the oil trade network relative to its actual trade volume. We measure this using betweenness centrality residuals: if a country sits on many shortest paths between trading partners but doesn't move much oil itself, it has a high shadow residual.</p>
-            <p>A high shadow residual does not prove illicit activity — it identifies structurally anomalous intermediaries that may warrant closer examination. Legitimate factors (geography, refining capacity, free trade zones) can also produce elevated centrality. These scores are best understood as a screening tool for further investigation, not as definitive indicators of sanctions evasion.</p>
+        <div class="accordion-item" data-accordion>
+            <div class="accordion-header" onclick="toggleAccordion(this)">
+                <span>Shadow Hubs in Global Oil Trade</span>
+                <span class="accordion-arrow">▶</span>
+            </div>
+            <div class="accordion-body">
+                <div class="accordion-content">
+                    <p>This visualization maps bilateral crude and refined petroleum trade flows (UN Comtrade HS 2709/2710) from 2019 to 2024, overlaid with OFAC sanctions exposure and network-derived "shadow hub" scores.</p>
+                </div>
+            </div>
+        </div>
 
-            <h4>Reading the Globe</h4>
-            <p><strong>Dots</strong> represent countries in the oil trade network. Note that OFAC sanctions target specific <em>entities</em> (individuals, companies, vessels) rather than countries per se — a high entity count reflects the number of sanctioned actors associated with that jurisdiction, not necessarily a blanket country-level sanction.</p>
-            <ul>
-                <li><span style="color:#ff6b6b">Red/pink dots</span> = high OFAC sanctions exposure (&gt;500 entities)</li>
-                <li><span style="color:#ff9f43">Orange dots</span> = medium OFAC exposure (100-500)</li>
-                <li><span style="color:#42a5f5">Blue dots</span> = low/zero OFAC exposure</li>
-                <li>Larger dots = higher shadow hub residual</li>
-            </ul>
-            <p><strong>Arcs</strong> appear when you click a country dot, showing all trade flows for that country.</p>
-            <ul>
-                <li><span style="color:#ffd700">Gold arcs</span> = top 10% by trade value</li>
-                <li><span style="color:#a0d2ff">Light blue arcs</span> = top 25%</li>
-                <li><span style="color:#5282c8">Dark blue arcs</span> = remaining flows</li>
-            </ul>
+        <div class="accordion-item" data-accordion>
+            <div class="accordion-header" onclick="toggleAccordion(this)">
+                <span>What Are Shadow Hubs?</span>
+                <span class="accordion-arrow">▶</span>
+            </div>
+            <div class="accordion-body">
+                <div class="accordion-content">
+                    <p>A shadow hub is a country that is <em>unusually central</em> in the oil trade network relative to its actual trade volume. We measure this using betweenness centrality residuals: if a country sits on many shortest paths between trading partners but doesn't move much oil itself, it has a high shadow residual.</p>
+                    <p>A high shadow residual does not prove illicit activity — it identifies structurally anomalous intermediaries that may warrant closer examination. Legitimate factors (geography, refining capacity, free trade zones) can also produce elevated centrality.</p>
+                </div>
+            </div>
+        </div>
 
-            <h4>Key Observations</h4>
-            <ul>
-                <li>Canada &rarr; USA is consistently the largest single flow (~$300-450B/yr)</li>
-                <li>Russia's trade flows drop sharply after 2021 sanctions (213 flows &rarr; 33 by 2024)</li>
-                <li>Iran similarly contracts from 69 flows (2021) to 28 (2024)</li>
-                <li>Shadow hubs like UAE, Turkey, and Singapore show high centrality despite moderate volumes</li>
-            </ul>
+        <div class="accordion-item" data-accordion>
+            <div class="accordion-header" onclick="toggleAccordion(this)">
+                <span>Reading the Globe</span>
+                <span class="accordion-arrow">▶</span>
+            </div>
+            <div class="accordion-body">
+                <div class="accordion-content">
+                    <p><strong>Dots</strong> = countries. OFAC sanctions target specific <em>entities</em> (individuals, companies, vessels), not countries per se.</p>
+                    <ul>
+                        <li><span style="color:#ff6b6b">Red</span> = high OFAC (&gt;500 entities)</li>
+                        <li><span style="color:#ff9f43">Orange</span> = medium OFAC (100-500)</li>
+                        <li><span style="color:#42a5f5">Blue</span> = low/zero OFAC</li>
+                        <li>Larger = higher shadow hub residual</li>
+                    </ul>
+                    <p><strong>Arcs</strong> appear when you click a country.</p>
+                    <ul>
+                        <li><span style="color:#ffd700">Gold</span> = top 10% by value</li>
+                        <li><span style="color:#a0d2ff">Light blue</span> = top 25%</li>
+                        <li><span style="color:#5282c8">Dark blue</span> = remaining</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
 
-            <h4>Data Sources</h4>
-            <p>UN Comtrade (bilateral trade), OFAC SDN List (sanctions entities), custom network diagnostics (shadow hub residuals). Analysis period: 2019-2024.</p>
+        <div class="accordion-item" data-accordion>
+            <div class="accordion-header" onclick="toggleAccordion(this)">
+                <span>Clustering Analysis</span>
+                <span class="accordion-arrow">▶</span>
+            </div>
+            <div class="accordion-body">
+                <div class="accordion-content">
+                    <p>Weighted clustering coefficients classify shadow hubs into behavioral patterns:</p>
+                    <ul>
+                        <li><strong>Exclusive Broker</strong> (clustering &lt; 0.20): Pure intermediary with minimal internal connections (e.g. Singapore 0.18, Turkey 0.19)</li>
+                        <li><strong>Mixed/Moderate</strong> (0.20-0.40): Some internal clustering (e.g. Spain 0.24, Kenya 0.31)</li>
+                        <li><strong>Laundering Syndicate</strong> (clustering &gt; 0.40): Dense internal network suggesting coordinated activity (e.g. Georgia 0.45, Uzbekistan 0.42)</li>
+                    </ul>
+                    <p>High clustering + high shadow residual = strongest signal for organized illicit intermediation.</p>
+                    <p style="margin-top:8px;"><a href="/static/clustering.html" style="color:#64b5f6; text-decoration:underline;">View full clustering visualization &rarr;</a></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="accordion-item" data-accordion>
+            <div class="accordion-header" onclick="toggleAccordion(this)">
+                <span>Key Observations</span>
+                <span class="accordion-arrow">▶</span>
+            </div>
+            <div class="accordion-body">
+                <div class="accordion-content">
+                    <ul>
+                        <li>Canada &rarr; USA is consistently the largest flow (~$300-450B/yr)</li>
+                        <li>Russia's flows drop sharply after 2021 sanctions (213 &rarr; 33 by 2024)</li>
+                        <li>Iran similarly contracts from 69 flows (2021) to 28 (2024)</li>
+                        <li>Shadow hubs like UAE, Turkey, and Singapore show high centrality despite moderate volumes</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="accordion-item" data-accordion>
+            <div class="accordion-header" onclick="toggleAccordion(this)">
+                <span>Data Sources</span>
+                <span class="accordion-arrow">▶</span>
+            </div>
+            <div class="accordion-body">
+                <div class="accordion-content">
+                    <p>UN Comtrade (bilateral trade), OFAC SDN List (sanctions entities), custom network diagnostics (shadow hub residuals, clustering coefficients). Analysis period: 2019-2024.</p>
+                </div>
+            </div>
         </div>
     </div>
 
