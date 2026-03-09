@@ -752,6 +752,10 @@
             <label for="edgeSlider">Show Top <span id="edgePctLabel">25%</span> of Edges</label>
             <input type="range" id="edgeSlider" min="5" max="100" step="5" value="25" style="width:100%; cursor:pointer; accent-color:#64b5f6;">
         </div>
+        <div class="control-group">
+            <label for="ofacSlider">Min OFAC Entities: <span id="ofacThreshLabel">5</span></label>
+            <input type="range" id="ofacSlider" min="0" max="100" step="1" value="5" style="width:100%; cursor:pointer; accent-color:#64b5f6;">
+        </div>
         <div class="stats">
             <div class="stats-section-label">Global (<span id="statsYear">2024</span>)</div>
             <div class="stats-row">
@@ -1268,6 +1272,12 @@
                     }
                 });
 
+                document.getElementById('ofacSlider').addEventListener('input', (e) => {
+                    document.getElementById('ofacThreshLabel').textContent = e.target.value;
+                    updateVisualization(currentYear);
+                    updateLegend(leaderboardMode);
+                });
+
                 // Point click handler
                 globe.onPointClick((point) => {
                     handlePointClick(point);
@@ -1306,25 +1316,31 @@
                         d.trade_total = 0;
                     }
 
-                    // Color by mode
+                    // Color by mode (filtered by OFAC threshold)
+                    const ofacThreshold = parseInt(document.getElementById('ofacSlider').value);
+                    const countryOfac = d.ofac_entities || 0;
+
                     if (leaderboardMode === 'cluster') {
                         // Cluster color mode
-                        const clusterKey = year + '_' + d.iso3;
                         const clusterEntry = clusteringData.find(cd => cd.year === year && cd.iso3 === d.iso3);
-                        if (clusterEntry && clusterEntry.shadow_resid > 0) {
+                        if (clusterEntry && clusterEntry.shadow_resid > 0 && countryOfac > ofacThreshold) {
                             const cc = clusterEntry.clustering;
                             if (cc < 0.20) d.color = '#42a5f5'; // Broker - blue
                             else if (cc > 0.40) d.color = '#ff6b6b'; // Syndicate - red
                             else d.color = '#ff9f43'; // Mixed - orange
                         } else {
-                            d.color = '#555577'; // Non-clustered countries: muted
+                            d.color = '#555577'; // Below threshold: muted
                         }
                     } else {
-                        // OFAC color mode
-                        const ofac = d.ofac_entities || 0;
-                        if (ofac > 500) d.color = '#ff6b6b';
-                        else if (ofac > 100) d.color = '#ff9f43';
-                        else d.color = '#42a5f5';
+                        // OFAC color mode - only color countries above threshold with positive shadow residual
+                        const sh = shadowLookup[year + '_' + d.iso3];
+                        if (sh && sh.shadow_resid > 0 && countryOfac > ofacThreshold) {
+                            if (countryOfac > 500) d.color = '#ff6b6b';
+                            else if (countryOfac > 100) d.color = '#ff9f43';
+                            else d.color = '#42a5f5';
+                        } else {
+                            d.color = '#555577'; // Below threshold: muted
+                        }
                     }
 
                     // Radius by shadow hub rank
@@ -1372,19 +1388,22 @@
 
         function updateLegend(mode) {
             const el = document.getElementById('legendItems');
+            const ofacThreshold = document.getElementById('ofacSlider').value;
             if (mode === 'cluster') {
                 el.innerHTML =
                     '<div class="legend-item"><div class="legend-color" style="background:#42a5f5;"></div><span>Exclusive Broker (CC &lt; 0.20)</span></div>' +
                     '<div class="legend-item"><div class="legend-color" style="background:#ff9f43;"></div><span>Mixed (CC 0.20–0.40)</span></div>' +
                     '<div class="legend-item"><div class="legend-color" style="background:#ff6b6b;"></div><span>Laundering Syndicate (CC &gt; 0.40)</span></div>' +
                     '<div class="legend-item"><div class="legend-color" style="background:#555577;"></div><span>Non-hub / Below threshold</span></div>' +
-                    '<div class="legend-item"><span>Dot size = Raw shadow hub rank</span></div>';
+                    '<div class="legend-item"><span>Dot size = Raw shadow hub rank</span></div>' +
+                    '<div class="legend-item"><span>OFAC filter: &gt; ' + ofacThreshold + '</span></div>';
             } else {
                 el.innerHTML =
                     '<div class="legend-item"><div class="legend-color" style="background:#ff6b6b;"></div><span>High OFAC (&gt;500)</span></div>' +
                     '<div class="legend-item"><div class="legend-color" style="background:#ff9f43;"></div><span>Medium OFAC (100-500)</span></div>' +
                     '<div class="legend-item"><div class="legend-color" style="background:#42a5f5;"></div><span>Low/No OFAC</span></div>' +
-                    '<div class="legend-item"><span>Dot size = Raw shadow hub rank</span></div>';
+                    '<div class="legend-item"><span>Dot size = Raw shadow hub rank</span></div>' +
+                    '<div class="legend-item"><span>OFAC filter: &gt; ' + ofacThreshold + '</span></div>';
             }
         }
 
@@ -1397,12 +1416,13 @@
         function updateLeaderboard(year) {
             const yearStr = year.toString();
             document.getElementById('lbYear').textContent = yearStr;
+            const ofacThreshold = parseInt(document.getElementById('ofacSlider').value);
 
             if (leaderboardMode === 'cluster') {
-                // Clustered analysis mode - use clustering data, filter by OFAC > 5 to match original analysis
+                // Clustered analysis mode - use clustering data, filter by OFAC threshold
                 const yearCluster = clusteringData.filter(d => d.year === year);
                 const top10 = yearCluster
-                    .filter(d => d.shadow_resid > 0 && d.ofac_entities > 5)
+                    .filter(d => d.shadow_resid > 0 && d.ofac_entities > ofacThreshold)
                     .sort((a, b) => b.shadow_resid - a.shadow_resid)
                     .slice(0, 10);
 
@@ -1438,7 +1458,7 @@
                         const iso3 = key.split('_')[1];
                         const sh = shadowLookup[key];
                         const country = countriesData[iso3];
-                        if (country && sh.shadow_rank && sh.shadow_rank <= 999) {
+                        if (country && sh.shadow_rank && sh.shadow_rank <= 999 && (country.ofac_entities || 0) > ofacThreshold) {
                             hubs.push({
                                 iso3: iso3,
                                 name: country.name || iso3,
