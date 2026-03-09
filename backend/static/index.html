@@ -1433,13 +1433,27 @@
 
         <div class="accordion-item" data-accordion>
             <div class="accordion-header" onclick="toggleAccordion(this)">
-                <span>What Are Shadow Hubs?</span>
+                <span>Shadow Hubs &amp; Clustering</span>
                 <span class="accordion-arrow">▶</span>
             </div>
             <div class="accordion-body">
                 <div class="accordion-content">
-                    <p>A shadow hub is a country that is <em>unusually central</em> in the oil trade network relative to its actual trade volume. We measure this using betweenness centrality residuals: if a country sits on many shortest paths between trading partners but doesn't move much oil itself, it has a high shadow residual.</p>
-                    <p>A high shadow residual does not prove illicit activity — it identifies structurally anomalous intermediaries that may warrant closer examination. Legitimate factors (geography, refining capacity, free trade zones) can also produce elevated centrality.</p>
+                    <p><strong>What is a shadow hub?</strong> A shadow hub is a country that is <em>unusually central</em> in the oil trade network relative to its actual trade volume. We measure this using betweenness centrality residuals: if a country sits on many shortest paths between trading partners but doesn't move much oil itself, it has a high shadow residual. A high shadow residual alone does not prove illicit activity — legitimate factors (geography, refining capacity, free trade zones) can also produce elevated centrality.</p>
+
+                    <p><strong>From anomaly to classification.</strong> To isolate true shadow hubs, we cross-reference these structural anomalies with the concentration of OFAC-sanctioned entities. By identifying the intersection of high betweenness residual and high sanctions exposure, we can pinpoint countries that are not just mathematically unusual — they are unusually central <em>and</em> connected to sanctioned activity.</p>
+
+                    <p><strong>How do they broker?</strong> Detecting shadow hubs tells us <em>which</em> countries are anomalous intermediaries, but not <em>how</em> they operate. The weighted clustering coefficient answers this by measuring whether a country's trade partners also trade with each other. For each country, it calculates the fraction of triangles among its neighbors, weighted by trade volume (<code>nx.clustering(G, weight='log_weight')</code>). Low clustering means a country's partners don't trade with each other — the country is a sole bridge between disconnected groups. High clustering means its partners form a dense clique where oil circulates within a tight network.</p>
+
+                    <p><strong>Three behavioral patterns emerge:</strong></p>
+                    <ul>
+                        <li><strong>Exclusive Broker</strong> (CC &lt; 0.20): A sole bridge between disconnected trading blocs. Partners rarely trade directly — all flows route through this hub. Example: Singapore (0.18), Turkey (0.19).</li>
+                        <li><strong>Mixed/Moderate</strong> (CC 0.20–0.40): Some partner interconnection but still structurally important as an intermediary. Example: Spain (0.24), Kenya (0.31).</li>
+                        <li><strong>Laundering Syndicate</strong> (CC &gt; 0.40): Partners trade heavily with each other, forming a dense sub-network. Oil circulates within a tight cluster rather than passing through a single chokepoint. Example: Georgia (0.45), Uzbekistan (0.42).</li>
+                    </ul>
+
+                    <p><strong>The bottom line:</strong> High clustering + high shadow residual + high OFAC exposure = strongest signal for organized sanctions evasion. These are the specific Exclusive Brokers and Laundering Syndicates actively bypassing global sanctions — the intersection of structural anomaly, behavioral pattern, and sanctions exposure.</p>
+
+                    <p style="margin-top:8px;"><a href="/static/clustering.html" style="color:#64b5f6; text-decoration:underline;">View full clustering visualization &rarr;</a></p>
                 </div>
             </div>
         </div>
@@ -1451,57 +1465,25 @@
             </div>
             <div class="accordion-body">
                 <div class="accordion-content">
-                    <p><strong>Dots</strong> = countries. OFAC sanctions target specific <em>entities</em> (individuals, companies, vessels), not countries per se.</p>
+                    <p><strong>Dots</strong> = countries. Dot size reflects shadow hub rank (larger = higher residual). Use the <em>Clustered / Raw</em> toggle on the leaderboard to switch color modes:</p>
+                    <p><strong>Clustered mode</strong> (default) — colors by brokerage pattern:</p>
+                    <ul>
+                        <li><span style="color:#42a5f5">Blue</span> = Exclusive Broker (CC &lt; 0.20)</li>
+                        <li><span style="color:#ff9f43">Orange</span> = Mixed (CC 0.20–0.40)</li>
+                        <li><span style="color:#ff6b6b">Red</span> = Laundering Syndicate (CC &gt; 0.40)</li>
+                        <li><span style="color:#555577">Gray</span> = non-hub / below threshold</li>
+                    </ul>
+                    <p><strong>Raw mode</strong> — colors by OFAC sanctions exposure. OFAC sanctions target specific <em>entities</em> (individuals, companies, vessels), not countries per se:</p>
                     <ul>
                         <li><span style="color:#ff6b6b">Red</span> = high OFAC (&gt;500 entities)</li>
-                        <li><span style="color:#ff9f43">Orange</span> = medium OFAC (100-500)</li>
+                        <li><span style="color:#ff9f43">Orange</span> = medium OFAC (100–500)</li>
                         <li><span style="color:#42a5f5">Blue</span> = low/zero OFAC</li>
-                        <li>Larger = higher shadow hub residual</li>
                     </ul>
-                    <p><strong>Arcs</strong> appear when you click a country.</p>
+                    <p><strong>Arcs</strong> appear when you click a country. Use the edge slider to control how many flows are shown (top N% by trade value):</p>
                     <ul>
                         <li><span style="color:#ffd700">Gold</span> = top 10% by value</li>
                         <li><span style="color:#a0d2ff">Light blue</span> = top 25%</li>
                         <li><span style="color:#5282c8">Dark blue</span> = remaining</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-
-        <div class="accordion-item" data-accordion>
-            <div class="accordion-header" onclick="toggleAccordion(this)">
-                <span>Clustering Analysis</span>
-                <span class="accordion-arrow">▶</span>
-            </div>
-            <div class="accordion-body">
-                <div class="accordion-content">
-                    <p><strong>Why clustering coefficients?</strong> Shadow hub detection (via betweenness centrality residuals) tells us <em>which</em> countries are anomalous intermediaries — but not <em>how</em> they broker oil. The weighted clustering coefficient answers this by measuring whether a country's trade partners also trade with each other.</p>
-                    <p><strong>The math:</strong> For each country <em>i</em>, the weighted clustering coefficient <em>C<sub>w</sub>(i)</em> is the fraction of triangles formed among its neighbors, weighted by trade volume. We compute this via <code>nx.clustering(G, weight='log_weight')</code> on the directed trade graph for each year. A triangle exists when country <em>i</em> trades with both <em>j</em> and <em>k</em>, and <em>j</em> also trades with <em>k</em>.</p>
-                    <p><strong>Intuition:</strong> Low clustering means a country's partners do <em>not</em> trade with each other — the country is a lone bridge between disconnected groups. High clustering means its partners form a dense clique — oil circulates within a tight network.</p>
-                    <p><strong>Three behavioral patterns emerge:</strong></p>
-                    <ul>
-                        <li><strong>Exclusive Broker</strong> (CC &lt; 0.20): Acts as a sole bridge between disconnected trading blocs. Partners rarely trade directly — all flows route through this hub. Example: Singapore (0.18), Turkey (0.19). Consistent with legitimate transshipment hubs or potential sanctions evasion chokepoints.</li>
-                        <li><strong>Mixed/Moderate</strong> (CC 0.20–0.40): Some partner interconnection but still structurally important as an intermediary. Example: Spain (0.24), Kenya (0.31). May serve regional brokerage roles with partial direct partner trade.</li>
-                        <li><strong>Laundering Syndicate</strong> (CC &gt; 0.40): Partners trade heavily with each other, forming a dense sub-network. Oil circulates within a tight cluster rather than passing through a single chokepoint. Example: Georgia (0.45), Uzbekistan (0.42). Consistent with coordinated trade rings or regional blocs.</li>
-                    </ul>
-                    <p><strong>Key insight:</strong> High clustering + high shadow residual = strongest signal for organized illicit intermediation. A country that is both structurally anomalous (high betweenness residual) <em>and</em> embedded in a dense trade clique (high clustering) warrants the closest scrutiny.</p>
-                    <p style="margin-top:8px;"><a href="/static/clustering.html" style="color:#64b5f6; text-decoration:underline;">View full clustering visualization &rarr;</a></p>
-                </div>
-            </div>
-        </div>
-
-        <div class="accordion-item" data-accordion>
-            <div class="accordion-header" onclick="toggleAccordion(this)">
-                <span>Key Observations</span>
-                <span class="accordion-arrow">▶</span>
-            </div>
-            <div class="accordion-body">
-                <div class="accordion-content">
-                    <ul>
-                        <li>Canada &rarr; USA is consistently the largest flow (~$300-450B/yr)</li>
-                        <li>Russia's flows drop sharply after 2021 sanctions (213 &rarr; 33 by 2024)</li>
-                        <li>Iran similarly contracts from 69 flows (2021) to 28 (2024)</li>
-                        <li>Shadow hubs like UAE, Turkey, and Singapore show high centrality despite moderate volumes</li>
                     </ul>
                 </div>
             </div>
