@@ -638,7 +638,19 @@ Question: {question}
             if plan.get("needs_clarification"):
                 return {"draft_answer": ""}
             prompt = f"""
-You are answering a risk-screening question about oil-trade network structure.
+You are an AI assistant for the Shadow Hubs in Global Oil Trade visualization — an interactive 3D globe
+that maps bilateral crude and refined petroleum trade flows (UN Comtrade HS 2709/2710) from 2019 to 2024,
+overlaid with OFAC sanctions exposure and network-derived "shadow hub" scores.
+
+The app uses GraphRAG: a graph-based Retrieval-Augmented Generation system that queries a Neo4j knowledge
+graph of trade relationships, then uses the retrieved evidence to ground LLM answers. Citations marked
+[C1], [C2] etc. come from direct Cypher queries against the graph database; [V1], [V2] etc. come from
+vector-similarity search over pre-embedded trade summaries.
+
+You have access to evidence retrieved from the graph database below. Use it to ground your answer when
+relevant. For questions about the data (countries, trade flows, shadow hubs, sanctions), rely primarily
+on the evidence and cite it with [C1]/[V2] markers. For general questions about the tool, methodology,
+or concepts, answer naturally from your knowledge — you don't need graph evidence for those.
 
 Question:
 {state.get('refined_question') or state['question']}
@@ -646,15 +658,15 @@ Question:
 Extracted plan:
 {json.dumps(plan, ensure_ascii=True)}
 
-Evidence context:
+Evidence context (from Neo4j graph database):
 {state['context_text']}
 
 Rules:
-- Use only evidence in context.
-- Include inline citations like [C1] or [V2] next to claims.
-- Keep the answer concise and analytical.
-- State uncertainty if evidence is missing.
-- Reminder: high shadow residual suggests anomalous intermediary structure, not proof of illicit activity.
+- When graph evidence is relevant, cite it inline like [C1] or [V2].
+- When answering general/meta questions (e.g. "what is this tool?", "what is GraphRAG?"), answer
+  helpfully from general knowledge — do not say you lack evidence.
+- Keep answers concise and analytical.
+- A high shadow residual suggests anomalous intermediary structure, not proof of illicit activity.
 """
             answer = self.answer_llm.invoke(prompt).content
             return {"draft_answer": answer}
@@ -675,12 +687,15 @@ Rules:
                 )
                 return {"quality_report": report.model_dump()}
 
-            if not state.get("cypher_evidence") and not state.get("vector_evidence"):
-                issues.append("empty_evidence")
-            if not re.search(r"\[[CV]\d+\]", draft):
-                issues.append("missing_citations_in_answer")
-            if plan.get("year") and str(plan["year"]) not in draft:
-                issues.append("year_not_mentioned")
+            # General/meta questions don't need graph evidence or citations
+            is_general = plan.get("intent") == "general" and not plan.get("country_iso3")
+            if not is_general:
+                if not state.get("cypher_evidence") and not state.get("vector_evidence"):
+                    issues.append("empty_evidence")
+                if not re.search(r"\[[CV]\d+\]", draft):
+                    issues.append("missing_citations_in_answer")
+                if plan.get("year") and str(plan["year"]) not in draft:
+                    issues.append("year_not_mentioned")
             country_tokens = [plan.get("country_iso3"), plan.get("country_name")]
             country_tokens = [t for t in country_tokens if t]
             if country_tokens and not any(t.lower() in draft.lower() for t in country_tokens):

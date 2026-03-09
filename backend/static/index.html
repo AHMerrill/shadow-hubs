@@ -1528,6 +1528,24 @@
 
         <div class="accordion-item" data-accordion>
             <div class="accordion-header" onclick="toggleAccordion(this)">
+                <span>Ask AI &amp; Citations</span>
+                <span class="accordion-arrow">▶</span>
+            </div>
+            <div class="accordion-body">
+                <div class="accordion-content">
+                    <p>The <strong>Ask AI</strong> button opens a chat powered by <em>GraphRAG</em> — Graph-based Retrieval-Augmented Generation. Instead of answering purely from pre-trained knowledge, the AI first queries a Neo4j graph database containing the actual trade network, shadow hub scores, and OFAC sanctions data, then uses what it finds to ground its response.</p>
+                    <p><strong>How citations work:</strong> Answers may include inline markers like <code>[C1]</code> or <code>[V2]</code>. These tell you where the information came from:</p>
+                    <ul>
+                        <li><strong>[C1], [C2], …</strong> — <em>Cypher citations.</em> Data retrieved by direct graph database queries (e.g. "top 5 shadow hubs in 2024", "Singapore's export partners"). These are exact results from the Neo4j knowledge graph.</li>
+                        <li><strong>[V1], [V2], …</strong> — <em>Vector citations.</em> Data retrieved by semantic similarity search over pre-embedded trade summaries. The AI finds the most relevant text snippets that match your question.</li>
+                    </ul>
+                    <p>For general questions about the tool or methodology, the AI answers from its own knowledge without needing graph evidence. A full citation list appears at the bottom of each response.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="accordion-item" data-accordion>
+            <div class="accordion-header" onclick="toggleAccordion(this)">
                 <span>Build Your Own</span>
                 <span class="accordion-arrow">▶</span>
             </div>
