@@ -108,7 +108,45 @@ CREATE (c)-[:SHADOW_HUB {
 
 
 // =============================================================
-// STEP 5: VERIFICATION QUERIES
+// STEP 5: ADD CLUSTERING COEFFICIENTS TO SHADOW_HUB EDGES
+//
+// The initial CSV did not include clustering coefficients.
+// We computed them after the fact using NetworkX (weighted CC
+// via nx.clustering(G, weight='log_weight')) — matching the
+// methodology in Keerti's network_analysis.ipynb — then wrote
+// them back onto the existing SHADOW_HUB relationships.
+//
+// Process (done with Claude):
+//   1. Pulled all SHADOW_HUB (iso3, year) pairs from Neo4j
+//   2. Built per-year directed trade graphs from the edges CSV
+//   3. Computed weighted clustering coefficients per country/year
+//   4. Verified output against Keerti's notebook results
+//   5. Ran SET queries to write clustering_weighted back to Neo4j
+//
+// The bulk update looked like this (one SET per country-year):
+// =============================================================
+
+// Example for a single country-year:
+// MATCH (c:Country {iso3:'GEO'})-[s:SHADOW_HUB]->(y:Year {year:2022})
+// SET s.clustering_weighted = 0.46536;
+
+// In practice we generated and ran ~413 SET statements, one per
+// SHADOW_HUB relationship. The full batch was produced in Python:
+//
+//   for _, row in cc_df.iterrows():
+//       print(f"MATCH (c:Country {{iso3:'{row.iso3}'}})"
+//             f"-[s:SHADOW_HUB]->(y:Year {{year:{row.year}}})"
+//             f" SET s.clustering_weighted = {row.clustering_weighted};")
+//
+// Verification:
+// MATCH (c:Country)-[s:SHADOW_HUB]->(y:Year)
+// WHERE s.clustering_weighted IS NOT NULL
+// RETURN count(s);
+// → 413 (all SHADOW_HUB relationships now carry clustering_weighted)
+
+
+// =============================================================
+// STEP 6: VERIFICATION QUERIES
 // Run these to confirm everything loaded correctly.
 // =============================================================
 
@@ -128,7 +166,7 @@ ORDER BY year;
 
 
 // =============================================================
-// STEP 6: DEMO QUERIES
+// STEP 7: DEMO QUERIES
 // From the README — these are the kinds of questions your
 // GraphRAG pipeline will eventually answer.
 // =============================================================

@@ -785,6 +785,22 @@
                 <span class="stats-label">Arcs Shown</span>
                 <span class="stats-value" id="selArcsShown">—</span>
             </div>
+            <div class="stats-row" style="margin-top:6px; border-top:1px solid rgba(100,181,246,0.15); padding-top:6px;">
+                <span class="stats-label">Shadow Residual</span>
+                <span class="stats-value" id="selResidual">—</span>
+            </div>
+            <div class="stats-row">
+                <span class="stats-label">Shadow Rank</span>
+                <span class="stats-value" id="selRank">—</span>
+            </div>
+            <div class="stats-row">
+                <span class="stats-label">OFAC Entities</span>
+                <span class="stats-value" id="selOfac">—</span>
+            </div>
+            <div class="stats-row">
+                <span class="stats-label">Clustering Coeff</span>
+                <span class="stats-value" id="selClustering">—</span>
+            </div>
         </div>
     </div>
 
@@ -1231,6 +1247,16 @@
                     document.getElementById('selTopPartner').textContent = topPartnerName +
                         ' ($' + (topPartnerVal > 1e9 ? (topPartnerVal / 1e9).toFixed(1) + 'B' : (topPartnerVal / 1e6).toFixed(0) + 'M') + ')';
                     document.getElementById('selArcsShown').textContent = visible.length + ' / ' + countryFlows.length;
+
+                    // Shadow hub & clustering stats
+                    const shKey = currentYear + '_' + point.iso3;
+                    const sh = shadowLookup[shKey];
+                    const clEntry = clusteringData.find(cd => cd.year === currentYear && cd.iso3 === point.iso3);
+                    document.getElementById('selResidual').textContent = sh && sh.shadow_resid ? sh.shadow_resid.toFixed(4) : '—';
+                    document.getElementById('selRank').textContent = sh && sh.shadow_rank && sh.shadow_rank < 999 ? sh.shadow_rank : '—';
+                    document.getElementById('selOfac').textContent = point.ofac_entities != null ? point.ofac_entities : '—';
+                    document.getElementById('selClustering').textContent = clEntry && clEntry.clustering != null ? clEntry.clustering.toFixed(4) : '—';
+
                     document.getElementById('selectedStats').style.display = 'block';
                 }
 
@@ -1285,7 +1311,7 @@
                         // Cluster color mode
                         const clusterKey = year + '_' + d.iso3;
                         const clusterEntry = clusteringData.find(cd => cd.year === year && cd.iso3 === d.iso3);
-                        if (clusterEntry && clusterEntry.shadow_resid > 0 && clusterEntry.ofac_entities > 5) {
+                        if (clusterEntry && clusterEntry.shadow_resid > 0) {
                             const cc = clusterEntry.clustering;
                             if (cc < 0.20) d.color = '#42a5f5'; // Broker - blue
                             else if (cc > 0.40) d.color = '#ff6b6b'; // Syndicate - red
@@ -1372,10 +1398,10 @@
             document.getElementById('lbYear').textContent = yearStr;
 
             if (leaderboardMode === 'cluster') {
-                // Clustered analysis mode - use clustering data, filter by OFAC > 5
+                // Clustered analysis mode - use clustering data
                 const yearCluster = clusteringData.filter(d => d.year === year);
                 const top10 = yearCluster
-                    .filter(d => d.shadow_resid > 0 && d.ofac_entities > 5)
+                    .filter(d => d.shadow_resid > 0)
                     .sort((a, b) => b.shadow_resid - a.shadow_resid)
                     .slice(0, 10);
 
