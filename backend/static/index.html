@@ -731,6 +731,10 @@
                 <option value="2024" selected>2024</option>
             </select>
         </div>
+        <div class="control-group">
+            <label for="edgeSlider">Show Top <span id="edgePctLabel">25%</span> of Edges</label>
+            <input type="range" id="edgeSlider" min="5" max="100" step="5" value="25" style="width:100%; cursor:pointer; accent-color:#64b5f6;">
+        </div>
         <div class="stats">
             <div class="stats-row">
                 <span class="stats-label">Economies</span>
@@ -1148,20 +1152,22 @@
                     document.getElementById('topFlow').textContent = 'Click a country';
                 });
 
-                // Point click handler
-                globe.onPointClick((point) => {
-                    handlePointClick(point);
-
-                    // Show flows for this country
+                // Build filtered arcs for a country based on edge slider
+                function showArcsForCountry(point) {
+                    const edgePct = parseInt(document.getElementById('edgeSlider').value) / 100;
                     const yearEdges = edgesByYear[currentYear.toString()] || [];
                     const countryFlows = yearEdges.filter(f =>
                         f.exporter_iso3 === point.iso3 || f.importer_iso3 === point.iso3
                     );
 
-                    // Pre-compute max volume once
-                    const maxVol = countryFlows.length > 0 ? Math.max(...countryFlows.map(f => f.trade_value_usd)) : 1;
+                    // Sort descending by value, take top N%
+                    const sorted = [...countryFlows].sort((a, b) => b.trade_value_usd - a.trade_value_usd);
+                    const cutoff = Math.max(1, Math.ceil(sorted.length * edgePct));
+                    const visible = sorted.slice(0, cutoff);
 
-                    const arcsArray = countryFlows
+                    const maxVol = visible.length > 0 ? visible[0].trade_value_usd : 1;
+
+                    const arcsArray = visible
                         .filter(f => countriesData[f.exporter_iso3] && countriesData[f.importer_iso3])
                         .map(f => {
                             const pct = f.trade_value_usd / maxVol;
@@ -1179,11 +1185,25 @@
                     document.getElementById('clearArcsBtn').style.display = arcsArray.length > 0 ? 'flex' : 'none';
 
                     // Update stats
-                    document.getElementById('flowCount').textContent = countryFlows.length;
-                    const vol = countryFlows.reduce((s, f) => s + f.trade_value_usd, 0);
+                    document.getElementById('flowCount').textContent = visible.length + ' / ' + countryFlows.length;
+                    const vol = visible.reduce((s, f) => s + f.trade_value_usd, 0);
                     document.getElementById('volumeTotal').textContent =
                         vol > 1e12 ? '$' + (vol / 1e12).toFixed(2) + 'T' : '$' + (vol / 1e9).toFixed(1) + 'B';
-                    document.getElementById('topFlow').textContent = (point.name || point.iso3) + ': ' + countryFlows.length + ' flows';
+                    document.getElementById('topFlow').textContent = (point.name || point.iso3) + ': ' + visible.length + ' flows';
+                }
+
+                // Edge slider — live update when a country is selected
+                document.getElementById('edgeSlider').addEventListener('input', (e) => {
+                    document.getElementById('edgePctLabel').textContent = e.target.value + '%';
+                    if (selectedCountry) {
+                        showArcsForCountry(selectedCountry);
+                    }
+                });
+
+                // Point click handler
+                globe.onPointClick((point) => {
+                    handlePointClick(point);
+                    showArcsForCountry(point);
                 });
 
                 // Initial visualization
