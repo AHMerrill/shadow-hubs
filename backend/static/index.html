@@ -1532,7 +1532,14 @@
             </div>
             <div class="accordion-body">
                 <div class="accordion-content">
-                    <p>UN Comtrade (bilateral trade), OFAC SDN List (sanctions entities), custom network diagnostics (shadow hub residuals, clustering coefficients). Analysis period: 2019-2024.</p>
+                    <p>Analysis period: 2019–2024. All raw and processed data is included in the <a href="https://github.com/AHMerrill/shadow-hubs" target="_blank" rel="noopener" style="color:#64b5f6;">GitHub repo</a>.</p>
+                    <ul>
+                        <li><a href="https://comtradeplus.un.org/" target="_blank" rel="noopener" style="color:#64b5f6;">UN Comtrade</a> — bilateral trade flows via the <code>comtradeapicall</code> Python package (HS 2709 crude petroleum, HS 2710 refined petroleum)</li>
+                        <li><a href="https://sanctionssearch.ofac.treas.gov/" target="_blank" rel="noopener" style="color:#64b5f6;">OFAC SDN List</a> — U.S. Treasury Specially Designated Nationals list (sdn.csv, add.csv, sdn_comments.csv)</li>
+                        <li><a href="https://unece.org/trade/uncefact/unlocode" target="_blank" rel="noopener" style="color:#64b5f6;">UN/LOCODE</a> — port and location geocoding</li>
+                        <li><a href="https://msi.nga.mil/Publications/WPI" target="_blank" rel="noopener" style="color:#64b5f6;">World Port Index (WPI)</a> — NGA Pub 150, supplementary port coordinates</li>
+                    </ul>
+                    <p style="margin-top:6px;">Network diagnostics (shadow hub residuals, betweenness centrality, clustering coefficients) are computed in the project notebooks using NetworkX.</p>
                 </div>
             </div>
         </div>
