@@ -815,7 +815,7 @@
                 <tr>
                     <th>Rank</th>
                     <th>Country</th>
-                    <th>Residual</th>
+                    <th id="lbThirdHeader">Residual</th>
                     <th id="lbFourthHeader">Cluster</th>
                 </tr>
             </thead>
@@ -1364,6 +1364,7 @@
             leaderboardMode = mode;
             document.getElementById('lbModeCluster').classList.toggle('active', mode === 'cluster');
             document.getElementById('lbModeRaw').classList.toggle('active', mode === 'raw');
+            document.getElementById('lbThirdHeader').textContent = mode === 'cluster' ? 'CC Weight' : 'Residual';
             document.getElementById('lbFourthHeader').textContent = mode === 'cluster' ? 'Cluster' : 'OFAC';
             updateLegend(mode);
             updateVisualization(currentYear);
@@ -1377,13 +1378,13 @@
                     '<div class="legend-item"><div class="legend-color" style="background:#ff9f43;"></div><span>Mixed (CC 0.20–0.40)</span></div>' +
                     '<div class="legend-item"><div class="legend-color" style="background:#ff6b6b;"></div><span>Laundering Syndicate (CC &gt; 0.40)</span></div>' +
                     '<div class="legend-item"><div class="legend-color" style="background:#555577;"></div><span>Non-hub / Below threshold</span></div>' +
-                    '<div class="legend-item"><span>Dot size = Shadow hub rank</span></div>';
+                    '<div class="legend-item"><span>Dot size = Raw shadow hub rank</span></div>';
             } else {
                 el.innerHTML =
                     '<div class="legend-item"><div class="legend-color" style="background:#ff6b6b;"></div><span>High OFAC (&gt;500)</span></div>' +
                     '<div class="legend-item"><div class="legend-color" style="background:#ff9f43;"></div><span>Medium OFAC (100-500)</span></div>' +
                     '<div class="legend-item"><div class="legend-color" style="background:#42a5f5;"></div><span>Low/No OFAC</span></div>' +
-                    '<div class="legend-item"><span>Dot size = Shadow hub rank</span></div>';
+                    '<div class="legend-item"><span>Dot size = Raw shadow hub rank</span></div>';
             }
         }
 
@@ -1424,7 +1425,7 @@
                     tr.innerHTML =
                         '<td class="lb-rank">' + (i + 1) + '</td>' +
                         '<td class="lb-country">' + (h.name || h.iso3) + '</td>' +
-                        '<td class="lb-residual">' + h.shadow_resid.toFixed(3) + '</td>' +
+                        '<td class="lb-residual">' + h.clustering.toFixed(4) + '</td>' +
                         '<td class="lb-ofac"><span class="lb-ofac-badge ' + p.css + '">' + p.label + '</span></td>';
 
                     tbody.appendChild(tr);
