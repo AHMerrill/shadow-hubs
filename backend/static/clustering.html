@@ -233,7 +233,7 @@
             document.getElementById('tableYear').textContent = year;
             const yearData = allData.filter(d => d.year === year);
             const top10 = yearData
-                .filter(d => d.shadow_resid > 0)
+                .filter(d => d.shadow_resid > 0 && d.ofac_entities > 5)
                 .sort((a, b) => b.shadow_resid - a.shadow_resid)
                 .slice(0, 10);
 

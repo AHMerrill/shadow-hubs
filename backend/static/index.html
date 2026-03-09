@@ -1398,10 +1398,10 @@
             document.getElementById('lbYear').textContent = yearStr;
 
             if (leaderboardMode === 'cluster') {
-                // Clustered analysis mode - use clustering data
+                // Clustered analysis mode - use clustering data, filter by OFAC > 5 to match original analysis
                 const yearCluster = clusteringData.filter(d => d.year === year);
                 const top10 = yearCluster
-                    .filter(d => d.shadow_resid > 0)
+                    .filter(d => d.shadow_resid > 0 && d.ofac_entities > 5)
                     .sort((a, b) => b.shadow_resid - a.shadow_resid)
                     .slice(0, 10);
 
